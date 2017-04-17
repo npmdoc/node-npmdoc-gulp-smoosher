@@ -1,0 +1,273 @@
+<div class="apidocDiv">
+<style>
+/*csslint
+*/
+.apidocDiv {
+    background: #fff;
+    font-family: Arial, Helvetica, sans-serif;
+}
+.apidocDiv a[href] {
+    color: #33f;
+    font-weight: bold;
+    text-decoration: none;
+}
+.apidocDiv a[href]:hover {
+    text-decoration: underline;
+}
+.apidocCodeCommentSpan {
+    background: #bbf;
+    color: #000;
+    display: block;
+}
+.apidocCodeKeywordSpan {
+    color: #d00;
+    font-weight: bold;
+}
+.apidocCodePre {
+    background: #eef;
+    border: 1px solid;
+    color: #777;
+    padding: 5px;
+    white-space: pre-wrap;
+}
+.apidocFooterDiv {
+    margin-top: 20px;
+    text-align: center;
+}
+.apidocModuleLi {
+    margin-top: 10px;
+}
+.apidocSectionDiv {
+    border-top: 1px solid;
+    margin-top: 20px;
+}
+.apidocSignatureSpan {
+    color: #777;
+    font-weight: bold;
+}
+</style>
+<h1>api documentation for
+    <a
+
+        href="https://github.com/gabrielflorit/gulp-smoosher#readme"
+
+    >gulp-smoosher (v0.0.9)</a>
+</h1>
+<h4>Inline css and js links with file contents</h4>
+<div class="apidocSectionDiv"><a
+    href="#apidoc.tableOfContents"
+    id="apidoc.tableOfContents"
+><h1>table of contents</h1></a><ol>
+
+    <li class="apidocModuleLi"><a href="#apidoc.module.gulp-smoosher">module gulp-smoosher</a><ol>
+
+        <li>
+
+            <a class="apidocElementLiA" href="#apidoc.element.gulp-smoosher.gulp-smoosher">
+            function <span class="apidocSignatureSpan"></span>gulp-smoosher
+            <span class="apidocSignatureSpan">(options)</span>
+            </a>
+
+        </li>
+
+        <li>
+
+            <a class="apidocElementLiA" href="#apidoc.element.gulp-smoosher.toString">
+            function <span class="apidocSignatureSpan">gulp-smoosher.</span>toString
+            <span class="apidocSignatureSpan">()</span>
+            </a>
+
+        </li>
+
+    </ol></li>
+
+    <li class="apidocModuleLi"><a href="#apidoc.module.gulp-smoosher.toString">module gulp-smoosher.toString</a><ol>
+
+        <li>
+
+            <a class="apidocElementLiA" href="#apidoc.element.gulp-smoosher.toString.toString">
+            function <span class="apidocSignatureSpan">gulp-smoosher.</span>toString
+            <span class="apidocSignatureSpan">()</span>
+            </a>
+
+        </li>
+
+    </ol></li>
+
+</ol></div>
+
+<div class="apidocSectionDiv">
+<h1><a href="#apidoc.module.gulp-smoosher" id="apidoc.module.gulp-smoosher">module gulp-smoosher</a></h1>
+
+
+    <h2>
+        <a href="#apidoc.element.gulp-smoosher.gulp-smoosher" id="apidoc.element.gulp-smoosher.gulp-smoosher">
+        function <span class="apidocSignatureSpan"></span>gulp-smoosher
+        <span class="apidocSignatureSpan">(options)</span>
+        </a>
+    </h2>
+    <ul>
+    <li>description and source-code<pre class="apidocCodePre">gulp-smoosher = function (options) {
+
+	var cssTags             = options &#x26;&#x26; options.cssTags ? options.cssTags : {begin: &#x27;&#x3c;style&#x3e;&#x27;, end: &#x27;&#x3c;/style&#x3e;&#x27;};
+	var jsTags              = options &#x26;&#x26; options.jsTags ? options.jsTags : {begin: &#x27;&#x3c;script&#x3e;&#x27;, end: &#x27;&#x3c;/script&#x3e;&#x27;};
+	var base                = options &#x26;&#x26; options.base;
+	var ignoreFilesNotFound = options &#x26;&#x26; options.ignoreFilesNotFound;
+
+	// create a stream through which each file will pass
+	return through.obj(function(file, enc, callback) {
+
+		if (file.isNull()) {
+			this.push(file); // do nothing if no contents
+			return callback();
+		}
+
+		if (file.isStream()) {
+			this.emit(&#x27;error&#x27;, new gutil.PluginError(&#x27;gulp-smoosher&#x27;, &#x27;Streaming not supported&#x27;));
+			return callback();
+		}
+
+		if (file.isBuffer()) {
+
+			var input = String(file.contents);
+
+			var readFileBase = base !== undefined ? base : file.base;
+
+			asyncReplace(input, replaceRegExp, function replacer(match) {
+
+				// Last argument to asyncReplace is always the callback.
+				var callback = _.values(arguments).pop();
+
+				var $ = cheerio.load(match);
+
+				var elements = $(&#x27;link, script&#x27;);
+
+				// Asynchronously replace the contents of each element in this
+				// comment block.
+				async.each(elements, function iterator(element, callback) {
+
+					var $element = $(element);
+					var url;
+					var tags;
+
+					// use this to save &#x3c;script attributes&#x3e;
+					var attrs;
+
+					if ($element.is(&#x27;link&#x27;)) {
+
+						url = $element.attr(&#x27;href&#x27;);
+						tags = cssTags;
+						attrs = {};
+
+					} else if ($element.is(&#x27;script&#x27;)) {
+
+						url = $element.attr(&#x27;src&#x27;);
+						tags = jsTags;
+						attrs = _.omit($element.attr(), &#x27;src&#x27;);
+					}
+
+					if (isLocal(url)) {
+						fs.readFile(path.join(readFileBase, url), function onRead(error, data) {
+
+							var isToIgnoreError = error &#x26;&#x26; ignoreFilesNotFound &#x26;&#x26; error.code === &#x27;ENOENT&#x27;;
+
+							if(isToIgnoreError) {
+
+								callback(null);
+
+							} else if(error) {
+
+								callback(error);
+
+							} else {
+
+								// create the new link/script element
+								var newElement = $(tags.begin + data + tags.end);
+								// port over the old script attributes (e.g. id, type, class, etc)
+								_.forEach(attrs, function (value, key) {
+
+									newElement.attr(key, value);
+
+								});
+
+								$(element).replaceWith(newElement);
+
+								callback(error);
+							}
+
+						});
+					} else {
+						callback(null);
+					}
+
+				}, function done(error) {
+
+					if (error) {
+						return callback(error);
+					}
+
+					// &#x22;Return&#x22; the replacement for asyncReplace.
+					callback(null, $.html());
+				});
+
+			}, function done(error, output) {
+
+				if (error) {
+					return callback(error);
+				}
+
+				output = output.replace(removeRegExp, &#x27;&#x27;);
+
+				file.contents = new Buffer(output);
+
+				callback(null, file);
+			});
+		}
+
+	});
+}</pre></li>
+    <li>example usage<pre class="apidocCodePre">n/a</pre></li>
+    </ul>
+
+
+
+    <h2>
+        <a href="#apidoc.element.gulp-smoosher.toString" id="apidoc.element.gulp-smoosher.toString">
+        function <span class="apidocSignatureSpan">gulp-smoosher.</span>toString
+        <span class="apidocSignatureSpan">()</span>
+        </a>
+    </h2>
+    <ul>
+    <li>description and source-code<pre class="apidocCodePre">toString = function () {
+    return text;
+}</pre></li>
+    <li>example usage<pre class="apidocCodePre">n/a</pre></li>
+    </ul>
+
+
+</div>
+
+<div class="apidocSectionDiv">
+<h1><a href="#apidoc.module.gulp-smoosher.toString" id="apidoc.module.gulp-smoosher.toString">module gulp-smoosher.toString</a></h1>
+
+
+    <h2>
+        <a href="#apidoc.element.gulp-smoosher.toString.toString" id="apidoc.element.gulp-smoosher.toString.toString">
+        function <span class="apidocSignatureSpan">gulp-smoosher.</span>toString
+        <span class="apidocSignatureSpan">()</span>
+        </a>
+    </h2>
+    <ul>
+    <li>description and source-code<pre class="apidocCodePre">function toString() { [native code] }</pre></li>
+    <li>example usage<pre class="apidocCodePre">n/a</pre></li>
+    </ul>
+
+
+</div>
+
+<div class="apidocFooterDiv">
+    [ this document was created with
+    <a href="https://github.com/kaizhu256/node-utility2" target="_blank">utility2</a>
+    ]
+</div>
+</div>
